@@ -191,6 +191,92 @@
           // Call the function when the page loads
           updateGreetingAndTime();
         </script>
+
+                <script>
+(function() {
+  // 1) State
+  let userName = localStorage.getItem('walterName') || '';
+  let askedName = false;
+
+  // 2) DOM refs
+  const inputEl      = document.getElementById('messageInput');
+  const sendBtn      = document.getElementById('sendButton');
+  const chatContainer = document.getElementById('chatContainer');
+
+  // 3) Helpers
+  function appendBubble(role, text) {
+    const bubble = document.createElement('div');
+    bubble.classList.add('bubble', role);
+    bubble.textContent = text;
+    chatContainer.appendChild(bubble);
+    // scroll to bottom
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+  }
+
+  async function sendMessage() {
+    const msg = inputEl.value.trim();
+    if (!msg) return;
+    appendBubble('user', msg);
+
+    // build payload
+    const payload = { message: msg };
+    if (!userName && askedName) {
+      // this message *is* the name
+      payload.name = msg;
+      payload.init = true;
+    } else if (userName) {
+      // normal chat flow
+      payload.name = userName;
+    }
+    // otherwise first ask for name: no extra fields
+
+    // send to server
+    try {
+      const res = await fetch('/walter/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const body = await res.json();
+      const botReply = body.response;
+      appendBubble('assistant', botReply);
+
+      // if we just captured the name, save it
+      if (!userName && askedName) {
+        userName = payload.name;
+        localStorage.setItem('walterName', userName);
+      }
+
+      // after first server ask-response, mark that we asked
+      if (!askedName) {
+        askedName = true;
+      }
+    } catch (err) {
+      appendBubble('assistant', 'Error de conexión. 🌌 Intenta de nuevo.');
+      console.error(err);
+    }
+
+    inputEl.value = '';
+    inputEl.focus();
+  }
+
+  // 4) Event listeners
+  sendBtn.addEventListener('click', sendMessage);
+  inputEl.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  // 5) On load, kick off the conversation
+  window.addEventListener('load', () => {
+    // trigger first exchange: user hits send with empty input
+    appendBubble('assistant', '✨ Walter Mercado dice: ¡Ser de Luz! Dígame su nombre, su merced, y contestaré todo lo que le depara el futuro. 🌠');
+  });
+})();
+</script>
+
             </div>
         </div>
     </div>
